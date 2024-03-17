@@ -66,6 +66,48 @@ static std::uintptr_t get_module_base(const DWORD pid, const wchar_t*  module_na
 	return module_base;
 }
 
+namespace driver {
+	namespace codes {
+		constexpr ULONG attach = CTL_CODE(FILE_DEVICE_UNKNOWN, 0x696, METHOD_BUFFERED, FILE_SPECIAL_ACCESS);
+
+		constexpr ULONG read = CTL_CODE(FILE_DEVICE_UNKNOWN, 0x697, METHOD_BUFFERED, FILE_SPECIAL_ACCESS);
+
+		constexpr ULONG write = CTL_CODE(FILE_DEVICE_UNKNOWN, 0x698, METHOD_BUFFERED, FILE_SPECIAL_ACCESS);
+	}
+
+	struct Request {
+		HANDLE process_id;
+
+		PVOID target;
+		PVOID buffer;
+
+		SIZE_T size;
+		SIZE_T return_size;
+	};
+
+	bool attach_to_process(HANDLE driver_handle, const DWORD pid) {
+		Request r;
+		r.process_id = reinterpret_cast<HANDLE>(pid);
+
+		return DeviceIoControl(driver_handle, codes::attach, &r, sizeof(r), &r, sizeof(r), nullptr, nullptr);
+	}
+
+	template <class T>
+	T read_memory(HANDLE driver_handle, const std::uintptr_t addr) {
+		T temp = {}:
+
+		Request r;
+		r.target = reinterpret_cast<PVOID>(addr);
+		r.buffer = &temp;
+		r.size = sizeof(T);
+
+		DeviceIoControl(driver_handle, codes::attach, &r, sizeof(r), &r, sizeof(r), nullptr, nullptr);
+
+		return temp;
+	}
+
+}
+
 int main() {
 	std::cout << "Nigger\n";
 
