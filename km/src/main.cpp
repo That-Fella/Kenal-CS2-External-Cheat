@@ -34,13 +34,45 @@ namespace driver {
 		SIZE_T return_size;
 	};
 
+	NTSTATUS create(PDEVICE_OBJECT device_object, PIRP irp) {
+		UNREFERENCED_PARAMETER(device_object);
+
+		IoCompleteRequest(irp, IO_NO_INCREMENT);
+
+		return irp->IoStatus.Status;
+	}
+
+	NTSTATUS close(PDEVICE_OBJECT device_object, PIRP irp) {
+		UNREFERENCED_PARAMETER(device_object);
+
+		IoCompleteRequest(irp, IO_NO_INCREMENT);
+
+		return irp->IoStatus.Status;
+	}
+
+	NTSTATUS device_control(PDEVICE_OBJECT device_object, PIRP irp) {
+		UNREFERENCED_PARAMETER(device_object);
+
+		debug_print("[+] Device control called.\n");
+
+		NTSTATUS status = STATUS_UNSUCCESSFUL;
+
+		PIO_STACK_LOCATION stack_irp = IoGetCurrentIrpStackLocation(irp);
+
+		auto request = reinterpret_cast<Request*>(irp->AssociatedIrp.SystemBuffer);
+
+		IoCompleteRequest(irp, IO_NO_INCREMENT);
+
+		return irp->IoStatus.Status;
+	}
+
 } // Namespace Driver
 
 NTSTATUS driver_main(PDRIVER_OBJECT driver_object, PUNICODE_STRING registry_path) {
 	UNREFERENCED_PARAMETER(registry_path);
 
 	UNICODE_STRING device_name = {};
-	RtlInitUnicodeString(&device_name, L"\\Driver\\KernelDriver");
+	RtlInitUnicodeString(&device_name, L"\\Device\\KernelDriver");
 
 	PDEVICE_OBJECT device_object = nullptr;
 	NTSTATUS status = IoCreateDevice(driver_object, 0, &device_name, FILE_DEVICE_UNKNOWN, FILE_DEVICE_SECURE_OPEN, FALSE, &device_object);
@@ -50,6 +82,30 @@ NTSTATUS driver_main(PDRIVER_OBJECT driver_object, PUNICODE_STRING registry_path
 		debug_print("[-] Failed to create driver device.\n");
 		return status;
 	}
+
+	debug_print("[+] Driver device successfully created.\n");
+
+	UNICODE_STRING symbolic_link = {};
+	RtlInitUnicodeString(&symbolic_link, L"\\DosDevices\\KernelDriver");
+
+	status = IoCreateSymbolicLink(&symbolic_link, &device_name);
+	if (status != STATUS_SUCCESS)
+	{
+		debug_print("[-] Failed to establish symbolic link.\n");
+		return status;
+	}
+
+	debug_print("[+] Driver symoblic link successfully established.\n");
+
+	SetFlag(device_object->Flags, DO_BUFFERED_IO);
+
+	driver_object->MajorFunction[IRP_MJ_CREATE] = driver::create;
+	driver_object->MajorFunction[IRP_MJ_CLOSE] = driver::close;
+	driver_object->MajorFunction[IRP_MJ_DEVICE_CONTROL] = driver::device_control;
+
+	ClearFlag(device_object->Flags, DO_DEVICE_INITIALIZING);
+
+	debug_print("[+] Driver initialized successfully.\n");
 
 	return STATUS_SUCCESS;
 }
