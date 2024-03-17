@@ -61,6 +61,36 @@ namespace driver {
 
 		auto request = reinterpret_cast<Request*>(irp->AssociatedIrp.SystemBuffer);
 
+		if (stack_irp == nullptr || request == nullptr)
+		{
+			IoCompleteRequest(irp, IO_NO_INCREMENT);
+			return status;
+		}
+
+		static PEPROCESS target_process = nullptr;
+
+		const ULONG control_code = stack_irp->Parameters.DeviceIoControl.IoControlCode;
+		switch (control_code)
+		{
+		case codes::attach:
+			status = PsLookupProcessByProcessId(request->process_id, &target_process);
+			break;
+
+		case codes::read:
+			if (target_process != nullptr) status = MmCopyVirtualMemory(target_process, request->target, PsGetCurrentProcess(), request->buffer, request->size, KernelMode, &request->return_size);
+			break;
+
+		case codes::write:
+			if (target_process != nullptr) status = MmCopyVirtualMemory(PsGetCurrentProcess(), request->buffer, target_process, request->target, request->size, KernelMode, &request->return_size);
+			break;
+
+		default:
+			break;
+		}
+
+		irp->IoStatus.Status = status;
+		irp->IoStatus.Information = sizeof(Request);
+
 		IoCompleteRequest(irp, IO_NO_INCREMENT);
 
 		return irp->IoStatus.Status;
