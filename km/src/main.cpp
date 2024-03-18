@@ -139,8 +139,6 @@ NTSTATUS driver_main(PDRIVER_OBJECT driver_object, PUNICODE_STRING registry_path
 }
 
 NTSTATUS DriverEntry() {
-	debug_print("[+] Woah this shit is nuts dude no way");
-
 	UNICODE_STRING driver_name = {};
 	RtlInitUnicodeString(&driver_name, L"\\Driver\\KernelDriver");
 
