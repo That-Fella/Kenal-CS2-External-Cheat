@@ -14,4 +14,6 @@ current keybinds are:
 numpad 1: glow
 numpad 2: bhop
 
+Showcase video: https://www.youtube.com/watch?v=C8h5xl7rWVE
+
 **I am not responsible for any bans this may cause. Use at your own risk.**
